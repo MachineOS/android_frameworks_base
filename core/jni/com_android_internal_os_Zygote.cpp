@@ -98,6 +98,8 @@
 
 #include "nativebridge/native_bridge.h"
 
+#include <lspd.h>
+
 namespace {
 
 // TODO (chriswailes): Add a function to initialize native Zygote data.
@@ -2020,13 +2022,23 @@ static void com_android_internal_os_Zygote_nativePreApplicationInit(JNIEnv*, jcl
 }
 
 static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
-        JNIEnv* env, jclass, jint uid, jint gid, jintArray gids,
+        JNIEnv* env, jclass clazz, jint uid, jint gid, jintArray gids,
         jint runtime_flags, jobjectArray rlimits,
         jint mount_external, jstring se_info, jstring nice_name,
         jintArray managed_fds_to_close, jintArray managed_fds_to_ignore, jboolean is_child_zygote,
         jstring instruction_set, jstring app_data_dir, jboolean is_top_app,
         jobjectArray pkg_data_info_list, jobjectArray whitelisted_data_info_list,
         jboolean mount_data_dirs, jboolean mount_storage_dirs) {
+
+    lspd::nativeForkAndSpecializePre(
+            env, clazz, &uid, &gid, &gids,
+            &runtime_flags, &rlimits,
+            &mount_external, &se_info, &nice_name,
+            &managed_fds_to_close, &managed_fds_to_ignore, &is_child_zygote,
+            &instruction_set, &app_data_dir, &is_top_app,
+            &pkg_data_info_list, &whitelisted_data_info_list,
+            &mount_data_dirs, &mount_storage_dirs);
+
     jlong capabilities = CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
 
     if (UNLIKELY(managed_fds_to_close == nullptr)) {
@@ -2068,13 +2080,21 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
                        mount_data_dirs == JNI_TRUE,
                        mount_storage_dirs == JNI_TRUE);
     }
+
+    lspd::nativeForkAndSpecializePost(env, clazz, pid);
+
     return pid;
 }
 
 static jint com_android_internal_os_Zygote_nativeForkSystemServer(
-        JNIEnv* env, jclass, uid_t uid, gid_t gid, jintArray gids,
+        JNIEnv* env, jclass clazz, uid_t uid, gid_t gid, jintArray gids,
         jint runtime_flags, jobjectArray rlimits, jlong permitted_capabilities,
         jlong effective_capabilities) {
+
+  lspd::nativeForkSystemServerPre(env, clazz, &uid, &gid, &gids,
+    &runtime_flags, &rlimits, &permitted_capabilities,
+    &effective_capabilities);
+
   std::vector<int> fds_to_close(MakeUsapPipeReadFDVector()),
                    fds_to_ignore(fds_to_close);
 
@@ -2125,6 +2145,9 @@ static jint com_android_internal_os_Zygote_nativeForkSystemServer(
           }
       }
   }
+
+  lspd::nativeForkSystemServerPost(env, clazz, pid);
+
   return pid;
 }
 
@@ -2228,12 +2251,20 @@ static void com_android_internal_os_Zygote_nativeInstallSeccompUidGidFilter(
  * @param is_top_app  If the process is for top (high priority) application
  */
 static void com_android_internal_os_Zygote_nativeSpecializeAppProcess(
-    JNIEnv* env, jclass, jint uid, jint gid, jintArray gids,
+    JNIEnv* env, jclass clazz, jint uid, jint gid, jintArray gids,
     jint runtime_flags, jobjectArray rlimits,
     jint mount_external, jstring se_info, jstring nice_name,
     jboolean is_child_zygote, jstring instruction_set, jstring app_data_dir, jboolean is_top_app,
     jobjectArray pkg_data_info_list, jobjectArray whitelisted_data_info_list,
     jboolean mount_data_dirs, jboolean mount_storage_dirs) {
+
+  lspd::specializeAppProcessPre(env, clazz, &uid, &gid, &gids,
+    &runtime_flags, &rlimits,
+    &mount_external, &se_info, &nice_name,
+    &is_child_zygote, &instruction_set, &app_data_dir, &is_top_app,
+    &pkg_data_info_list, &whitelisted_data_info_list,
+    &mount_data_dirs, &mount_storage_dirs);
+
   jlong capabilities = CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
 
   SpecializeCommon(env, uid, gid, gids, runtime_flags, rlimits,
@@ -2242,6 +2273,8 @@ static void com_android_internal_os_Zygote_nativeSpecializeAppProcess(
                    is_child_zygote == JNI_TRUE, instruction_set, app_data_dir,
                    is_top_app == JNI_TRUE, pkg_data_info_list, whitelisted_data_info_list,
                    mount_data_dirs == JNI_TRUE, mount_storage_dirs == JNI_TRUE);
+
+  lspd::specializeAppProcessPost(env, clazz);
 }
 
 /**

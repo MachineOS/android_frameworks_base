@@ -263,6 +263,7 @@ cc_library_shared {
                 "libtimeinstate",
                 "server_configurable_flags",
                 "libstatspull",
+                "liblspd"
             ],
             export_shared_lib_headers: [
                 // AndroidRuntime.h depends on nativehelper/jni.h

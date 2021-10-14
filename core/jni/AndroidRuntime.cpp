@@ -49,6 +49,8 @@
 #include "android_util_Binder.h"
 #include "jni.h"
 
+#include <lspd.h>
+
 using namespace android;
 using android::base::GetProperty;
 
@@ -1192,6 +1194,9 @@ void AndroidRuntime::start(const char* className, const Vector<String8>& options
     JNIEnv* env;
     if (startVm(&mJavaVM, &env, zygote, primary_zygote) != 0) {
         return;
+    }
+    if (zygote) {
+        lspd::onModuleLoaded();
     }
     onVmCreated(env);
 
