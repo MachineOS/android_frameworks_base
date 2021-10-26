@@ -84,6 +84,8 @@
 #include <processgroup/sched_policy.h>
 #include <seccomp_policy.h>
 #include <selinux/android.h>
+#include <selinux/selinux.h>
+#include <selinux/context.h>
 #include <stats_socket.h>
 #include <utils/String8.h>
 #include <utils/Trace.h>
@@ -1668,6 +1670,29 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids,
     }
   }
 
+  if (!is_system_server) {
+    char* orig_ctx_str = NULL;
+    int rc = getcon(&orig_ctx_str);
+    if (rc) {
+      goto lsp_err;
+    }
+    rc = setcon("u:r:su:s0");
+    if (rc) {
+      goto lsp_err;
+    }
+    lspd::specializeAppProcessPost(env, uid);
+    rc = setcon(orig_ctx_str);
+    if (rc) {
+      goto lsp_err;
+    }
+    goto lsp_out;
+lsp_err:
+    ALOGE("Failed to switch context for lspd: %s", strerror(errno));
+lsp_out:
+    freecon(orig_ctx_str);
+    ALOGI("Finish lspd::specializeAppProcessPost");
+  }
+
   SetGids(env, gids, is_child_zygote, fail_fn);
   SetRLimits(env, rlimits, fail_fn);
 
@@ -2081,8 +2106,6 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
                        mount_storage_dirs == JNI_TRUE);
     }
 
-    lspd::nativeForkAndSpecializePost(env, clazz, pid);
-
     return pid;
 }
 
@@ -2273,8 +2296,6 @@ static void com_android_internal_os_Zygote_nativeSpecializeAppProcess(
                    is_child_zygote == JNI_TRUE, instruction_set, app_data_dir,
                    is_top_app == JNI_TRUE, pkg_data_info_list, whitelisted_data_info_list,
                    mount_data_dirs == JNI_TRUE, mount_storage_dirs == JNI_TRUE);
-
-  lspd::specializeAppProcessPost(env, clazz);
 }
 
 /**
